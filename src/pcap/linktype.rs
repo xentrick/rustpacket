@@ -1,4 +1,5 @@
 /// The type of physical link backing a network interface.
+/// All layers defined as seen here: https://www.tcpdump.org/linktypes.html
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum LinkType {
