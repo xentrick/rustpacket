@@ -60,24 +60,24 @@ pub struct Capture<R> {
 
 impl<R: Read> Capture<R> {
     pub fn new(rdr: R) -> Result<Capture<R>> {
-        let mut rdr = BufReader::with_capacity(BUF_CAPACITY, rdr)
+        let mut reader = BufReader::with_capacity(BUF_CAPACITY, rdr)
             .set_policy(MinBuffered(DEFAULT_MIN_BUFFERED));
-        let endianness = PcapHeader::peek_endianness(rdr.fill_buf()?)?
+        let byteorder = PcapHeader::peek_endianness(reader.fill_buf()?)?
             .ok_or(Error::MalformedHeader)?;
 
-        println!("ByteOrder: {:#?}", endianness);
+        println!("ByteOrder: {:#?}", byteorder);
 
-        let header: PcapHeader = match endianness {
-            Endianness::Big => PcapHeader::parse::<BigEndian>(rdr.fill_buf()?)?,
-            Endianness::Little => PcapHeader::parse::<LittleEndian>(rdr.fill_buf()?)?,
+        let header: PcapHeader = match byteorder {
+            Endianness::Big => PcapHeader::parse::<BigEndian>(reader.fill_buf()?)?,
+            Endianness::Little => PcapHeader::parse::<LittleEndian>(reader.fill_buf()?)?,
         };
 
         println!("{}", header);
 
         Ok(Capture {
-            rdr: rdr,
+            rdr: reader,
             finished: false,
-            endianness: endianness,
+            endianness: byteorder,
 
             major_version: header.major,
             minor_version: header.minor,
@@ -86,7 +86,7 @@ impl<R: Read> Capture<R> {
             sigfigs: header.sigfigs,
 
             snaplen: header.snaplen,
-            linktype: LinkType::ETHERNET,
+            linktype: header.linktype,
 
             last_packet_len: 0,
             data: 0..0,

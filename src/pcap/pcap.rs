@@ -5,6 +5,7 @@ use std::fmt;
 
 
 use super::error::Result;
+use super::linktype::LinkType;
 use super::types::{Endianness, require_bytes};
 
 #[derive(Clone, PartialEq, Debug)]
@@ -14,7 +15,7 @@ pub struct PcapHeader {
     pub timezone: Option<u32>,
     pub sigfigs: u32,
     pub snaplen: u32,
-    pub linktype: u32,
+    pub linktype: LinkType,
 }
 
 
@@ -28,7 +29,7 @@ impl fmt::Display for PcapHeader {
         }
         writeln!(f, "SigFigs: {:#06x}", self.sigfigs)?;
         writeln!(f, "Snaplen: {:#06x}", self.snaplen)?;
-        writeln!(f, "LinkType: {:#06x}", self.linktype)
+        writeln!(f, "LinkType: {:?}", self.linktype)
     }
 }
 
@@ -39,6 +40,9 @@ impl PcapHeader {
             0 => None,
             i => Some(i),
         };
+        let link_type: LinkType = LinkType::from_u32(
+            B::read_u32(&buf[20..24])
+        );
 
         Ok(PcapHeader {
             major: B::read_u16(&buf[4..6]),
@@ -46,7 +50,7 @@ impl PcapHeader {
             timezone: tz,
             sigfigs: B::read_u32(&buf[12..16]),
             snaplen: B::read_u32(&buf[16..20]),
-            linktype: B::read_u32(&buf[20..24]),
+            linktype: link_type,
         })
     }
 
