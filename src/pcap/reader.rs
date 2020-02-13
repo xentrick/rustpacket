@@ -117,7 +117,7 @@ impl<R: Read> Capture<R> {
         // Parse packet header and payload
         let pkt = match self.endianness {
             Endianness::Big => Packet::parse::<BigEndian>(buf, self.nano_factor)?,
-                Endianness::Little => Packet::parse::<LittleEndian>(buf, self.nano_factor)?,
+            Endianness::Little => Packet::parse::<LittleEndian>(buf, self.nano_factor)?,
         };
         self.last_packet_len = pkt.orig_len;
         self.data = pkt.range.clone();
