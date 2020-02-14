@@ -121,8 +121,8 @@ pub struct Packet<'a> {
     pub payload: &'a [u8],
 }
 
-impl<'a> Packet<'a> {
-    pub fn parse<B: ByteOrder>(buf: &'a [u8], factor: u32) -> Result<Packet<'a>> {
+impl<'p> Packet<'p> {
+    pub fn parse<B: ByteOrder>(buf: &'p [u8], factor: u32) -> Result<Packet<'p>> {
         // Looks like the pcap is truncated. Skip the rest.
         require_bytes(buf, 16)?;
 

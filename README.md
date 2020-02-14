@@ -97,4 +97,29 @@ The pcap parsing in this is pretty much just a clone of (pcarp)[https://github.c
   - No need for allocating new packets each time. One packet with a known structure
 - Serializer/Deserializer for easy parsing/sending/receiving for known types?
   
+  
+# Cool Stuff
+
+ - Is it possible to implement an interface as the generic for BufWriter/BufReader?
    
+
+
+# Dir Structure
+
+- [ ] afpacket
+- [ ] bin
+  - [ ] tcpdump
+  - [ ] file2pcap
+- [ ] bpf
+- [ ] layers
+- [ ] parser
+  - LayerDecoding
+  - Packet
+- [ ] pcap
+- [ ] pfring
+- [ ] physical/hardware/datalink
+- [ ] reassembly
+- [ ] util
+
+- PacketBuilder
+- Packet

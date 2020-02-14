@@ -46,13 +46,13 @@ pub struct Capture<R> {
 
     /// The size of the last packet read.
     pub last_packet_len: usize,
-    pub data: Range<usize>, // todo
+    pub data_range: Range<usize>,
 
     pub interfaces: Vec<String>, // todo
     pub current_interface: Option<String>, // todo
 }
 
-impl<R: Read> Capture<R> {
+impl<'p, R: Read> Capture<R> {
     pub fn new(rdr: R) -> Result<Capture<R>> {
         let mut reader = BufReader::with_capacity(BUF_CAPACITY, rdr)
             .set_policy(MinBuffered(DEFAULT_MIN_BUFFERED));
@@ -68,6 +68,7 @@ impl<R: Read> Capture<R> {
         reader.consume(24);
         println!("ByteOrder: {:#?}", &byteorder);
         println!("{}", &header);
+
 
         Ok(Capture {
             rdr: reader,
@@ -86,7 +87,7 @@ impl<R: Read> Capture<R> {
             linktype: header.linktype,
 
             last_packet_len: 0,
-            data: 0..0,
+            data_range: 0..0,
 
             interfaces: Vec::with_capacity(0),
             current_interface: None,
@@ -94,15 +95,15 @@ impl<R: Read> Capture<R> {
     }
 
     /// Get next packet
-    pub fn next(&mut self) -> Option<Result<PacketBody>> {
-        match self.advance() {
-            Err(e) => Some(Err(e)),
-            Ok(()) => self.get().map(Ok),
+    pub fn next(&'p mut self) -> Result<Option<Packet<'p>>> {
+        if self.finished {
+            return Ok(None)
         }
+        self.advance()
     }
 
     /// Parse the next packet from the pcap file.
-    pub fn advance(&mut self) -> Result<()> {
+    pub fn advance(&'p mut self) -> Result<Option<Packet<'p>>> {
         // Look at the length of the _last_ block, to see how much data to discard
         self.rdr.consume(self.last_packet_len);
 
@@ -111,20 +112,23 @@ impl<R: Read> Capture<R> {
         if buf.is_empty() {
             self.last_packet_len = 0;
             self.finished = true;
-            return Ok(())
+            return Ok(None)
         }
 
         // Parse packet header and payload
-        let pkt = match self.endianness {
+        let pkt: Packet<'p> = match self.endianness {
             Endianness::Big => Packet::parse::<BigEndian>(buf, self.nano_factor)?,
             Endianness::Little => Packet::parse::<LittleEndian>(buf, self.nano_factor)?,
         };
-        self.last_packet_len = pkt.orig_len;
-        self.data = pkt.range.clone();
-        Ok(())
+
+        self.last_packet_len = pkt.orig_len.clone();
+        self.data_range = pkt.range.clone();
+        println!("next() &pkt: {:p}", pkt.payload);
+
+        Ok(Some(pkt))
     }
 
-    /// Peek the current packet
+    /// Peek the current packet payload
     ///
     /// This function is cheap, since `Packet` holds a reference to the
     /// internal buffer and no pcap data is copied.  When you're done with
@@ -133,9 +137,9 @@ impl<R: Read> Capture<R> {
         if self.finished {
             return None
         }
-        println!("Range: {:#?}", &self.data);
+        println!("Range: {:#?}", &self.data_range);
         Some(PacketBody {
-            data: &self.rdr.buffer()[self.data.clone()]
+            data: &self.rdr.buffer()[self.data_range.clone()]
         })
     }
 }
@@ -148,7 +152,7 @@ impl<R: Read + Seek> Capture<R> {
         self.rdr.fill_buf()?;
         self.finished = false;
         self.last_packet_len = 0;
-        self.data = 0..0;
+        self.data_range = 0..0;
         Ok(())
     }
 }

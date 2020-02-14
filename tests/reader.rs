@@ -55,11 +55,12 @@ fn pcap_next() {
     assert_eq!(pcap.sigfigs, None);
     assert_eq!(pcap.snaplen, 0xffff);
     assert_eq!(pcap.linktype, LinkType::ETHERNET);
-    let payload = pcap.next()
+    let pkt = pcap.next()
         .expect("Next packet not available when it should be...")
         .expect("Error parsing...");
+    println!("TEST &pkt: {:p}", pkt.payload);
     // Fix this with an ethernet layer, but this is a raw parse for now
-    assert_eq!(payload.data[0..6], [0xfe, 0xff, 0x20, 0x00, 0x01, 0x00])
+    assert_eq!(&pkt.payload[0..6], [0xfe, 0xff, 0x20, 0x00, 0x01, 0x00]);
 }
 
 /// This tests a pcap that has incomplete data due to a small snaplen.
