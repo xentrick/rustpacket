@@ -15,6 +15,7 @@ pub enum Error {
     OptionsAfterEnd,
     ResolutionTooHigh,
     IO(io::Error),
+    SnapLenExceeded { caplen: usize, snaplen: usize },
 }
 
 impl fmt::Display for Error {
@@ -24,7 +25,7 @@ impl fmt::Display for Error {
             IncorrectMagicBytes(x) => write!(f, "Didn't understand magic number {:?}", x),
             NotEnoughBytes { expected, actual } => write!(
                 f,
-                "Not enough bytes (expected {}, saw {})",
+                "Not enough bytes (expec)ted {}, saw {})",
                 expected, actual
             ),
             MalformedHeader => write!(f, "There was an issue parsing the pcap header."),
@@ -34,6 +35,11 @@ impl fmt::Display for Error {
             OptionsAfterEnd => write!(f, "There were more options after an option with type 0"),
             ResolutionTooHigh => write!(f, "This timestamp resolution won't fit into a u32"),
             IO(x) => write!(f, "IO error: {}", x),
+            SnapLenExceeded { caplen, snaplen } => write!(
+                f,
+                "Capture length exceeds snap length: {} > {}",
+                caplen, snaplen
+            ),
         }
     }
 }

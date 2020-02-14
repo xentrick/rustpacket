@@ -6,7 +6,7 @@ use std::ops::Range;
 
 use super::types::*;
 use super::linktype::LinkType;
-use super::error::Result;
+use super::error::{Result, Error};
 use super::pcap::{Packet, PcapHeader, PacketBody};
 
 const BUF_CAPACITY: usize = 10_000_000;
@@ -40,7 +40,7 @@ pub struct Capture<R> {
     pub sigfigs: Option<usize>, // What is the actual type here...
 
     /// The "snapshot length" for the capture (typically 65535 or even more, but might be limited by the user), see: incl_len vs. orig_len below.
-    pub snaplen: u32,
+    pub snaplen: usize,
     /// link-layer header type, specifying the type of headers at the beginning of the packet (e.g. 1 for Ethernet, see [tcpdump.org's link-layer header types](http://www.tcpdump.org/linktypes.html) page for details); this can be various types such as 802.11, 802.11 with various radio information, PPP, Token Ring, FDDI, etc.
     pub linktype: LinkType,
 
@@ -125,6 +125,15 @@ impl<'p, R: Read> Capture<R> {
         self.data_range = pkt.range.clone();
         println!("next() &pkt: {:p}", pkt.payload);
 
+        // Verify snaplen and packet length match up. If we want to bypass this error, we can manually set the snaplength.
+        if pkt.incl_len > self.snaplen {
+            return Err(
+                Error::SnapLenExceeded{
+                    caplen: pkt.incl_len,
+                    snaplen: self.snaplen
+                })
+        }
+
         Ok(Some(pkt))
     }
 
@@ -141,6 +150,37 @@ impl<'p, R: Read> Capture<R> {
         Some(PacketBody {
             data: &self.rdr.buffer()[self.data_range.clone()]
         })
+    }
+
+    /// SetSnaplen sets the snapshot length of the capture file.
+    ///
+    /// This is useful when a pcap file contains packets bigger than then snaplen.
+    /// Pcapgo will error when reading packets bigger than snaplen, then it dumps those
+    /// packets and reads the next 16 bytes, which are part of the "faulty" packet's payload, but pcapgo
+    /// thinks it's the next header, which is probably also faulty because it's not really a packet header.
+    /// This can lead to a lot of faulty reads.
+    ///
+    /// The SetSnaplen function can be used to set a bigger snaplen to prevent those read errors.
+    ///
+    /// This snaplen situation can happen when a pcap writer doesn't truncate packets to the snaplen size while writing packets to file.
+    /// E.g. In Python, dpkt.pcap.Writer sets snaplen by default to 1500 (https://dpkt.readthedocs.io/en/latest/api/api_auto.html#dpkt.pcap.Writer)
+    /// but doesn't enforce this when writing packets (https://dpkt.readthedocs.io/en/latest/_modules/dpkt/pcap.html#Writer.writepkt).
+    /// When reading, tools like tcpdump, tcpslice, mergecap and wireshark ignore the snaplen and use
+    /// their own defined snaplen.
+    /// E.g. When reading packets, tcpdump defines MAXIMUM_SNAPLEN (https://github.com/the-tcpdump-group/tcpdump/blob/6e80fcdbe9c41366df3fa244ffe4ac8cce2ab597/netdissect.h#L290)
+    /// and uses it (https://github.com/the-tcpdump-group/tcpdump/blob/66384fa15b04b47ad08c063d4728df3b9c1c0677/print.c#L343-L358).
+    ///
+    /// For further reading:
+    ///  - https://github.com/the-tcpdump-group/tcpdump/issues/389
+    ///  - https://bugs.wireshark.org/bugzilla/show_bug.cgi?id=8808
+    ///  - https://www.wireshark.org/lists/wireshark-dev/201307/msg00061.html
+    ///  - https://github.com/wireshark/wireshark/blob/bfd51199e707c1d5c28732be34b44a9ee8a91cd8/wiretap/pcap-common.c#L723-L742
+    ///    - https://github.com/wireshark/wireshark/blob/f07fb6cdfc0904905627707b88450054e921f092/wiretap/libpcap.c#L592-L598
+    ///    - https://github.com/wireshark/wireshark/blob/f07fb6cdfc0904905627707b88450054e921f092/wiretap/libpcap.c#L714-L727
+    ///  - https://github.com/the-tcpdump-group/tcpdump/commit/d033c1bc381c76d13e4aface97a4f4ec8c3beca2
+    ///  - https://github.com/the-tcpdump-group/tcpdump/blob/88e87cb2cb74c5f939792171379acd9e0efd8b9a/netdissect.h#L263-L290
+    pub fn set_snaplen(&mut self, len: usize) {
+        self.snaplen = len;
     }
 }
 

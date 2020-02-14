@@ -20,7 +20,7 @@ pub(crate) struct PcapHeader {
     pub minor: u16,
     pub timezone: i32,
     pub sigfigs: Option<usize>,
-    pub snaplen: u32,
+    pub snaplen: usize,
     pub linktype: LinkType,
 }
 
@@ -75,7 +75,7 @@ impl PcapHeader {
             minor: B::read_u16(&buf[6..8]),
             timezone: tz,
             sigfigs: sig,
-            snaplen: B::read_u32(&buf[16..20]),
+            snaplen: B::read_u32(&buf[16..20]) as usize,
             linktype: link_type,
         })
     }
